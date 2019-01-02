@@ -417,6 +417,217 @@ terminate the calling process
 
 其他情况使用 exit() 就行
 
+## OS 如何执行一段 program (direct execution / 直接执行) ?
+
+OS在 process list 中创建一条 process entry,
+
+为程序分配一些内存,
+
+从 disk 从加载程序到内存中,
+
+定位程序的入口 main() 然后进行跳转,
+
+然后开始运行用户代码.
+
+但是, 像上面是直接运行程序, 那么: 如何确保程序不会做其他出格的事, 比如访问不可访问的内存 ?
+
+## OS如何停止正在运行的程序, 切换到其他 process, 从而实现 time sharing ?
+
+*todo*
+
+## 如何为 process 添加限制 ?
+
+引入了新的 processor mode (处理器模式): user mode
+
+在 user mode 下, process 不能发起 IO 请求, 不然处理器会抛错, OS 会 kill 掉这个 process
+
+OS运行在 kernel mode, 代码可以运行任何操作
+
+## user mode 和 kernel mode 是谁在维护的 ?
+
+hardware 维护
+
+在 user mode 下, 应用对 hardware 资源没有全部访问权
+
+在 kernel mode 下, OS 对 hardware 的所有资源都有访问权
+
+hardware 会提供一些指令, 包括:
+
+trap into kernel(陷入内核),
+
+return-from-trap 返回到 user mode 程序,
+
+OS 通过 hardware 提供的指令告诉 hardware, trap table 在内存中的位置.
+
+## trap 指令, 任何 user program 都可以执行吗 ?
+
+目前为止看来, 是的
+
+*todo*
+
+## kernel 就是 OS 吗 ?
+
+是的
+
+trap into kernel (trap into OS)
+
+*todo*
+
+## return-from-trap 指令是 OS 发起的 ?
+
+那么 OS 就需要知道 trap 指令是否完成,
+
+OS 处于 kernel mode 中
+
+## hardware 执行 trap 指令之前, 谁为调用者保存 registers ? 保存到哪里 ?
+
+在 x86中, CPU (hardware) 将 program 的 pc, flags, 其他registers, push 到每个进程的 kernel stack.
+
+而 OS 发起的 return-from-trap 指令, 会将 stack 中的值 pop 出, 并恢复 program 的运行.
+
+## 什么是进程的 kernel stack ?
+
+每一个 process 都有一个 kernel stack.
+
+当 hardware 在 user mode 和 kernel mode 之间切换的时候, 用于存储和恢复 register,
+
+kernel stack 由 hardware 维护
+
+## 当系统启动, OS 会告诉 hardware, 当发生确定的 exceptional event, 需要运行哪些代码 ?
+
+在系统启动的时候, kernel 会建立一个 trap table
+
+这张表里面, OS 告诉 hardware, 当发生特定的 event, 需要执行的 trap handlers 的地址是什么
+
+系统 reboot, 会重新建立 trap table
+
+## 有哪些 exceptional event ?
+
+比如:
+
+hard disk interrupt,
+
+keyboard interrupt,
+
+program 发起一个系统调用
+
+## 发起指令告诉 hardware, trap table 在哪里, 也是一个高优先级操作吗 ?
+
+是的, 不能在 user mode 中发起该指令
+
+## 运行在 user mode 下的 process, 如何发起 IO 请求 ?
+## user mode 下 program 调用 trap 指令陷入内核模式以后, 是将 CPU 切换给了 OS 吗 ?
+
+[![image3.png](https://i.postimg.cc/QtnM9nVr/image3.png)](https://postimg.cc/qhyrWw8m)
+
+当 user program 发起 系统调用, trap into kernel (trap into OS), 会调用到 hardware 的指令,
+
+hardware 保存 user program 的 register 到 kernel stack,
+
+hardware 切换到 kernel mode,
+
+hardware 跳转到对应的 trap handler 执行代码,
+
+trap handler 是 OS 中的代码, 因为现在处于 kernel mode, 所以 OS 可以进行对应的 syscall, 比如 IO 操作
+
+OS 完成 syscall (system call) 以后, 调用 return-from-trap 指令,
+
+hardware 从 kernel stack pop 出 register, 切换回 user mode, 返回原来的 PC (program counter),
+
+user program 继续执行,
+
+当 user program 执行完, 会调用 exit(), trap into OS
+
+## hardware 也就是 CPU 吗 ?
+
+是的
+
+## 当 user program 在运行的时候, OS 此时占有 CPU 吗 (单 processor) ?
+
+不占有
+
+## 什么操作会发起一个 syscall ?
+
+比如: 打开一个文件, 发送消息给其他机器, 创建一个新的进程...
+
+## 当 OS 与 user program 之间使用 *合作式运行*, user program 什么时候会将 CPU 给 OS ?
+
+应用产生不合法的行为, 比如除以 0, 访问不可访问的内存, 都会产生 trap into OS.
+
+## 如果 user program 是一个恶意程序, 使用 loop 一直消耗 CPU 的资源而不释放, 怎么办 ?
+
+此时我们引入 timer interrupt 的概念
+
+## 什么是 timer interrupt ?
+
+用于每隔一定时间产生一个 interrupt,
+
+当 interrupt 产生时, 当前正在运行的 process 会停止,
+
+然后 OS 中一个预先配置好的 interrupt handler 会运行,
+
+此时, OS 重新获得了 CPU 的控制权.
+
+当系统启动:
+
+1 OS 需要通知 hardware, trap table 的位置
+
+2 OS 启动 timer
+
+## timer 是在 hardware 上维护的吗 ?
+
+是的
+
+*todo*
+
+## 究竟是 OS 存储当前正在运行的 process 的 register ? 还是 hardware 存储 ?
+
+OS 是发起方, hardware 是执行方.
+
+内存处在 hardware, 真正存储的地方是 hardware,
+
+OS 发起了存储指令给 hardware.
+
+## 发生 process context switch, 需要进行什么工作 ?
+
+OS 需要保持当前正在执行的 process 的 register 到对应 process 的 kernel stack 中,
+
+以及将接下来将运行的 process 的 register 从它的 kernel stack 中恢复出来,
+
+然后 OS 执行 return-from-trap 指令, process 运行.
+
+[![image4.png](https://i.postimg.cc/sx71k4Dd/image4.png)](https://postimg.cc/PvftZZw2)
+
+上图中有两种类型的 register save/restore:
+
+1. 当 timer interrupt 发生, 当前运行的进程的 user register 会隐式地, 由 hardware 存储到对应 process 的 kernel stack 中
+
+2. 当 OS 决定切换进程, kernel register 会显式地, 由 software (OS) 存储到 process 的内存中
+
+## 如何切换不同的 process 的 kernel stack ?
+
+改变 stack pointer, 指向另一个 process 的 kernel stack.
+
+## stack pointer 维护在哪里 ?
+
+维护在 hardware 内存中呗.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
