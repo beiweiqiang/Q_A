@@ -177,10 +177,6 @@ process list 会包含 OS 中的所有进程
 
 不过它们从 fork() 返回的值是不一样的
 
-## int rc_wait = wait(NULL); 传入NULL代表什么 ?
-
-*todo*
-
 ## exec() 的运行机制是怎样的 ?
 
 执行 exec() 会加载可执行程序的代码, 覆盖当前的 code segment, 以及当前的 static data.
@@ -203,8 +199,186 @@ fork 和 exec 分开, 可以实现 input/output 的重定向, pipes ...
 
 于是, 任何从 wc 程序输出的内容会被输入到文件中
 
+### 举例:
 
+```C
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
+int main() {
+  int rc = fork();
+  if (rc < 0) {
+  } else if (rc == 0) {
+    close(STDOUT_FILENO);
+    open("./p4.output", O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+
+    char * myargs[3];
+    myargs[0] = strdup("wc"); // program: "wc" (word count)
+    myargs[1] = strdup("CMakeCache.txt"); // argument: file to count
+    myargs[2] = NULL; // marks end of array
+    execvp(myargs[0], myargs);
+
+  } else {
+    int rc_wait = wait(NULL);
+  }
+
+  return 0;
+}
+```
+
+#### 例子中, `close(STDOUT_FILENO);` 作用是什么 ? `open("./p4.output", O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);` 作用是什么 ?
+
+close() 和 open(), 还有 fclose() 和 fopen()
+
+fclose() 和 fopen() 是与 file stream 有关的函数, 需要将 stream 比如 `FILE *ptr` 传入函数
+
+close() 和 open() 是与 file descriptor 有关的函数, 需要将 descriptor 比如 `int fd` 传入函数
+
+fclose() 和 fopen() 是 C 标准函数, 因此是可移植的, 而 close() 和 open() 是 POSIX-specific 的函数, 是不可移植的.
+
+*todo*
+
+## POSIX 是什么 ?
+
+是 Portable Operating System Interface for uni-X 的缩写
+
+可移植操作系统接口
+
+为各种UNIX系统定义的一套统一的API标准
+
+## `kill()` 系统调用的运行机制是怎样的 ?
+
+kill() 方法用于发送信号给process.
+
+包括暂停, 杀死以及其它有用的指令.
+
+在大部分 UNIX 终端, 会结合键盘进行发送特殊命令给当前process
+
+比如 control-c 发送 SIGINT (中断)
+
+control-z 发送 SIGTSTP(暂停)
+
+## 一个 user 会不会发信号给另一个 user 的 process ?
+
+不会, 除非是 root
+
+在 user 的权限下会运行很多process, 该 user 只能给他的 process 发送信号
+
+在同一台 PC 上, OS 会给每个 user 分配对应的 CPU, 内存, disk.
+
+## ps 命令
+
+ps 列出正在运行的进程
+
+## top 命令
+
+展示系统的进程, 以及进程使用了多少 CPU 或其他资源
+
+## 进程间的变量不共享 ?
+
+[![image.png](https://i.postimg.cc/9fMwN961/image.png)](https://postimg.cc/BjrvjjQ1)
+
+```
+输出:
+child x: 200 
+parent x: 0 
+parent x: 100 
+```
+
+子进程有一套自己的变量, 是父进程的副本
+
+## exec() 的变体: execl(), execle(), execlp(), execv(), execvp(), execvpe() ?
+
+execl, execlp, execle, execv, execvp, execvpe - execute a file
+
+方法:
+```
+#include <unistd.h>
+extern char **environ;
+int execl(const char *path, const char *arg, ...);
+int execlp(const char *file, const char *arg, ...);
+int execle(const char *path, const char *arg, ..., char * const envp[]);
+int execv(const char *path, char *const argv[]);
+int execvp(const char *file, char *const argv[]);
+int execvpe(const char *file, char *const argv[], char *const envp[]);
+```
+
+这些函数的第一个参数是需要执行的文件的名字
+
+在 execl, execlp, execle 函数中,
+
+`*arg, ...` 可以作为 arg0, arg1, ..., argn, 也就是传递给 file 的参数, 第一个参数 arg0 通常是 file
+
+参数列表通常以一个 NULL 指针结束
+
+execv, execvp, execvpe 函数提供的是一个参数数组, 与上面情况类似, 第一个参数是 file, 最后一个参数是 NULL:
+
+[![image2.png](https://i.postimg.cc/T2q2gwSP/image2.png)](https://postimg.cc/NLFwwgQh)
+
+execle, execvpe 都带有 e, 可以通过参数 envp 指定环境变量.
+
+envp 是一个字符串数组, 最末尾一个参数需要是 NULL.
+
+## execlp, execvp, execvp 函数, 第一个参数是 file, 其他是 path, file 和 path 有什么不同 ?
+
+参数为 file:
+
+如果指定的文件名不包含斜杠 ( / ) 字符,
+
+则execlp, execvp和execvpe函数会根据 在PATH环境变量中指定的以冒号分隔的目录路径名列表中查找该文件, eg: (PATH 环境变量是 "/bin:/usr/bin", 则查找 /bin 和 /usr/bin)
+
+如果未定义此变量, 则路径列表默认为当前目录, 后跟 confstr 返回的目录列表 (\_CS\_PATH)
+
+如果指定的文件名不包含 /, 则不会去查找 PATH 环境变量, 根据 file 给出的路径查找文件
+
+## 如果在子进程中使用 wait() ?
+
+wait() 返回 -1
+
+## waitpid 和 wait 区别 ? 什么时候用 waitpid ?
+## `int rc_wait = wait(NULL);` 传入NULL代表什么 ?
+
+概要:
+
+```C
+#include <sys/types.h>
+#include <sys/wait.h>
+pid_t wait(int *status)
+pid_t waitpid(pid_t pid, int *status, int options);
+int waitid(idtype_t idtype, id_t id, siginfo_t *infop, int options);
+```
+
+功能:
+
+用于等待进程改变状态
+
+描述:
+
+以上方法用于父进程等待子进程, 当子进程状态改变, 父进程获得对应的信息.
+
+状态改变也就是发生了以下情况之一: 子进程结束, 子进程因为信号而停止, 子进程被信号重新唤醒.
+
+如果子进程的状态已经发生过变化, 则这些调用会马上返回. 否则会一直阻塞, 直到子进程状态发生改变, 或者信号 handler 中断调用.
+
+wait() 和 waitpid():
+
+wait() 会挂起正在执行的进程, 直到子进程终止, wait(&status) 相当于 waitpid(-1, &status, 0).
+
+waitpid() 会挂起正在执行的进程, 直到指定 pid 子进程 状态发生改变. 默认情况下, waitpid 等待直到子进程终止, 但是可以等其它状态改变, 在 options 参数内进行修改.
+
+在 waitpid 中, pid 值可以为:
+
+< -1: 等待任意一个子进程, 子进程的进程组id与 指定pid的绝对值 一致
+
+-1: 等待任意一个子进程
+
+0: 等待任意一个子进程, 子进程的进程组id 与调用进程的进程组id 一致
+
+> 0: 等待指定一个子进程, 进程号为 pid
 
 
 
