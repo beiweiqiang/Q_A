@@ -614,12 +614,101 @@ OS 需要保持当前正在执行的 process 的 register 到对应 process 的 
 
 ---
 
+# 关于 OS 调度
 
+## 可以将 process 称为 job ?
 
+是的
 
+## 介绍各种调度算法之前, 我们需要进行假设:
 
+1. 每个 job 运行相同的时间长度
 
+2. 所有 job 的 arrival time 一样
 
+3. 一旦 job 开始, 会一直运行到结束
+
+4. 所有 job 只会使用 CPU, 也就是没有 IO
+
+5. 每个job 的运行时间是 scheduler 算法已知的
+
+## 用什么去衡量 scheduler 算法的优劣 ?
+
+衡量 scheduler 算法的优劣, 主要是衡量 性能.
+
+可以使用
+
+turnaround time: 一个job, 完成的时间 - job到达系统的时间
+
+公式: `T(turnaround)  = T(completion) - T(arrival)`
+
+## 有哪些 scheduler 算法 ?
+
+First In, First Out (FIFO)
+
+优化 turnaround time:
+
+- Shortest Job First (SJF)
+
+- Shortest Time-to-Completion First (STCF)
+
+优化 Response time:
+
+- Round Robin (RR)
+
+## scheduler 算法: First In, First Out (FIFO) ?
+
+这是最基础的算法, 先来的任务先执行
+
+[![image5.png](https://i.postimg.cc/QdknqF5f/image5.png)](https://postimg.cc/FYzZrsTS)
+
+A B C 三个任务 arrival time 相同, 于是 `T(arrival) = 0`
+
+假设 A 先运行, 然后 B 运行, 然后 C 运行
+
+假设它们的运行时间都是 10s
+
+`average turnaround time = (10 + 20 + 30) / 3 = 20`
+
+缺点:
+
+如果我们忽略假设中的一个条件: *1 每个 job 运行相同的时间长度*
+
+如果先到达的 A 运行时间太长
+
+[![image6.png](https://i.postimg.cc/CKcPW9cD/image6.png)](https://postimg.cc/KKgDTpSv)
+
+`average turnaround time = (100 + 110 + 120) / 3 = 110`
+
+## scheduler 算法: Shortest Job First (SJF) ?
+
+在同一时间点上, 先运行时间最短的任务, 然后是下一个运行时间最短的任务...
+
+[![image7.png](https://i.postimg.cc/j5CgKv11/image7.png)](https://postimg.cc/Fd5gVbNb)
+
+`average turnaround time = (10 + 20 + 120) / 3 = 50`
+
+缺点:
+
+如果我们忽略假设中的一个条件: *2 所有 job 的 arrival time 一样*
+
+假设 B, C 在 10s 才到
+
+[![image8.png](https://i.postimg.cc/rmbhpxXw/image8.png)](https://postimg.cc/476vLKxD)
+
+`average turnaround time = (100 + (110-10) + (120-10)) / 3 = 103.33`
+
+## scheduler 算法: Shortest Time-to-Completion First (STCF)
+
+在该 scheduler 算法中, 我们忽略假设中的一个条件: *3 一旦 job 开始, 会一直运行到结束*
+
+[![image9.png](https://i.postimg.cc/D0Xx40nd/image9.png)](https://postimg.cc/gLGVfYwn)
+
+当一个 job 进入系统, STCF scheduler 算法会在所有 job 中, 挑选运行时间最短的 job 先运行
+
+`average turnaround time = ( (120-0) + (20-10) + (30-10) ) / 3 = 50`
+
+## 抢占式 / 非抢占式 有什么不同 ?
 
 
 
