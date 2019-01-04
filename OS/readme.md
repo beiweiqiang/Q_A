@@ -980,11 +980,127 @@ priority boot 的时间间隔是多少 ?
 
 一个 random seed (seed state / seed) 是一个数字 (或者vector), 被用来初始化 伪随机数生成器.
 
+## 什么是 Proportional Share ?
 
+一种调度算法,
 
+**不考虑** 优化 turnaround time 和 response time,
 
+而 **考虑** 保证每一个 job, 获取到确定的百分比的 CPU 时间
 
+## 什么是 lottery scheduling ? 有什么优势 ?
 
+使用了 tickets 的机制
+
+比如总共 100 tickets, job A 持有 75 tickets, job B 持有 25. 则 A 获得 75% 的 CPU 时间, 而 B 25%
+
+lottery scheduling 的优势是 使用了 randomness.
+
+1 random 可以避免边缘情况
+
+2 random 是轻量级的, 每个 process 只需要记录很少的 state (eg: process tickets)
+
+3 random fast.
+
+## ticket *currency* 机制是什么 ?
+
+允许每个用户定义自己的 tickets 数量, 每个 user 自己内部可以定义不同的 tickets 换算关系.
+
+eg:
+
+user A 和 user B, 每个 user 各有 100 tickets,
+
+A 运行 2 job, B 运行 1 job
+
+A 分别给 2个 job 分配 500 tickets, 换算为全局 tickets 为 50 tickets
+
+[![image23.png](https://i.postimg.cc/vBcrQzr4/image23.png)](https://postimg.cc/tZGZkFmb)
+
+## ticket *transfer* 机制是什么 ?
+
+ticket 传递, 一个 process 暂时地将自己的 tickets 切换给另一个 process.
+
+大多数用在 client / server 中, client 发送一个请求给 server 想让 server 执行, client 将自己的 tickets 都传递给 server, 最大化 server 的性能. 结束以后, tickets 回归到 client
+
+## ticket *inflation* 机制是什么 ?
+
+一个 process 可以暂时地提高或者降低自己的 tickets 的数量
+
+ticket inflation 会应用在一组 process 之间互相信任的环境下
+
+比如 一个 process 需要 CPU, 可以使用 ticket inflation 增加自己的 tickets
+
+## lottery scheduling 如何实现 ?
+
+[![image24.png](https://i.postimg.cc/sXqp1hmw/image24.png)](https://postimg.cc/TLjy4hZD)
+
+[![image25.png](https://i.postimg.cc/GtDvDmSr/image25.png)](https://postimg.cc/GTcBwdCS)
+
+上面, 总共有 400tickets, 假如取得一个随机数 300, 遍历该 list, 使 counter = 0 递增到 >300, 遍历到的节点就是 winner.
+
+为了使这种实现的效率更高, 一般会从高到低排序每个 job. 这样可以遍历更少的 number
+
+## lottery scheduling 的难点是什么 ?
+
+如何合理的分配 tickets
+
+## 如何判断 lottery scheduling 的合理性 ?
+
+引入 U(unfairness metric)
+
+如果分配了相同的 tickets, job 运行相同的时间, 那么两个 jobs 应该在同一时间点附近运行完成.
+
+假设有两个 job, 每个 job 分配相同的 tickets(100), 每个 job 运行相同的时间(R)
+
+U 定义为 第一job完成的时间 除以 第二job完成的时间
+
+如果 jobs 几乎在相同的时间完成, U 会接近 1
+
+当两个 jobs, 运行时间从 1 -> 1000, 下图是他们的 U
+
+[![1.png](https://i.postimg.cc/dVwG7vRP/1.png)](https://postimg.cc/0bXz3THc)
+
+当 job 运行时间足够长, lottery scheduling 就符合预期.
+
+## stride scheduling 是什么 ?
+
+在 tickets 的机制上, 建立一种 deterministic fair-share scheduler
+
+job 拥有的 stride 与 tickets 的数量相反
+
+比如 job A, B, C 分别拥有 100, 50, 250 tickets, 使用 10000 作为被除数,
+
+A, B, C process 的 stride 分别为 100, 200, 40
+
+当每一次 process 运行, 用 pass += stride 来跟踪 process 的全局进度.
+
+scheduler 使用 stride 和 pass 决定接下来运行哪一个 process.
+
+基础思想是, 在任意给定时间, 选择一个 pass 值最低的 process 运行.
+
+eg:
+
+[![2.png](https://i.postimg.cc/zDhh030Y/2.png)](https://postimg.cc/6T9TQWkM)
+
+## 举例说明 stride scheduling ?
+
+[![3.png](https://i.postimg.cc/mrhzMrtq/3.png)](https://postimg.cc/mcfgWB3N)
+
+## 既然 stride scheduling 可以保证 job proportional share 运行, 为什么还需要 lottery scheduling ?
+
+考虑一种情况, 当 stride scheduling 运行一段时间以后, 系统进入一个新的 job, 那么这个 job 的 pass 应该是多少 ? 如果是 0, 则该 job 会一直垄断 CPU, 显然不合适.
+
+lottery scheduling 的好处是: no global state per process. 没有一直维护一个全局的进程状态
+
+## Completely Fair Scheduler(CFS) 是什么 ?
+
+用于实现 fair-share scheduling, 优势是 高效率 和 可扩展性
+
+大多数 scheduler 是基于固定 time slice
+
+CFS 将 CPU 平均的分配给所有竞争的 process.
+
+基于一个技术: virtual runtime (vruntime)
 
 
 
