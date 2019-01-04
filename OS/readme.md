@@ -114,7 +114,9 @@ OS 还会将程序关联 input/output.
 [![png.jpg](https://i.postimg.cc/KzCGf3bK/png.jpg)](https://postimg.cc/0Md12Qbx)
 
 - 运行: 该时刻进程实际占用着CPU
+
 - 就绪: 可运行, 但因为其他进程占用着CPU而暂时停止
+
 - 阻塞: 除非某种外部事件发生 (比如 I/O 请求完成), 否则进程不能运行 (比如进程向 disk 请求 I/O 操作, 此时进程会进入 blocked, OS 调度其他进程运行)
 
 转换:
@@ -709,6 +711,278 @@ A B C 三个任务 arrival time 相同, 于是 `T(arrival) = 0`
 `average turnaround time = ( (120-0) + (20-10) + (30-10) ) / 3 = 50`
 
 ## 抢占式 / 非抢占式 有什么不同 ?
+
+抢占式会停止现在正在运行的 job, 运行另一个新选中的 job
+
+SJF 是 非抢占式 的调度算法
+
+STCF 是 抢占式 的调度算法
+
+## Response Time 是什么 ?
+
+这是引入的一个新的衡量 scheduler 算法性能的标准
+
+Response Time 主要适用于有用户发生交互的情况下, 如何提高交互的性能. 更快的响应用户.
+
+Response Time 计算为: job首次运行的时间 - job到达的时间
+
+`T(response) = T(firstrun) - T(arrival)`
+
+eg:
+
+A 在 0s 到达, 运行 10s, 而 B, C 在 10s 到达, 运行 10s
+
+分别的 `T(response)` 为 0, 0(B 到达了就马上运行), 10s
+
+## scheduler 算法: Round Robin (RR) ?
+
+该算法不是将 job 一直运行到结束, 而是运行一个时间片 (time slice), 然后切换到另一个在运行队列中的 job 运行.
+
+time slice 的长度需要是 timer-interrupt 时间段 的整数倍
+
+eg:
+
+当不使用 RR, 只是用 SJF
+
+[![image10.png](https://i.postimg.cc/TwZZ4ZP0/image10.png)](https://postimg.cc/N9kJyCm2)
+
+`T(response) = (0 + 5 + 10) / 3 = 5`
+
+如果使用 RR, time slice 为 1s:
+
+[![image11.png](https://i.postimg.cc/7YrFM8dY/image11.png)](https://postimg.cc/JtKYMgR9)
+
+`T(response) = (0 + 1 + 2) / 3 = 1`
+
+可以看出, time slice 越短, T(response) 越小.
+
+但是在 RR 算法下,
+
+`average turnaround time = ( 13 + 14 + 15 ) / 3 = 14`
+
+十分糟糕的 turnaround time.....
+
+的确, RR 做法其实是拉长了每个 job 的运行时间
+
+## time slice 的长度为什么需要是 timer-interrupt 时间段 的整数倍 ?
+
+在运行了 time slice 的时间长度以后, 刚好发生 timer interrupt, 可以进行 job 切换
+
+## time slice 太短会造成什么问题 ?
+
+会造成 context switch 过于频繁, 带来的性能消耗会变大.
+
+## context switch 会产生什么性能问题 ?
+
+当发生 context switch, 不仅需要 OS 保存和恢复 register.
+
+当 process 运行, 会建立很多状态, 包括 CPU cache, TLBs, 很多预测器...
+
+切换 process, 这些状态性的东西都会被刷新, 新的状态重新载入.
+
+## 如果 process 发起 IO请求之后, scheduler 不切换其他 process ?
+
+接下来我们会忽略假设的一个条件: *4 所有 job 只会使用 CPU, 也就是没有 IO*
+
+当一个 job 发起 IO 请求, job 会一直被 blocked 住, 等待 IO 完成
+
+当 IO 完成了, 会发起一个 interrupt, OS 运行, 并将原来的 process 置为 ready 状态
+
+## 如果 process 发起 IO 请求之后, scheduler 不切换其他 process, 会发生怎样的结果 ?
+
+假设 A 运行 50ms CPU, 但是每运行 10ms 会发起一个 运行 10ms 的IO.
+
+[![image12.png](https://i.postimg.cc/J439pYC3/image12.png)](https://postimg.cc/fJL2LKLk)
+
+## 假设我们使用 STCF 调度算法 ?
+
+实际上, A 被拆分成了 5个 10ms 的子任务, B 是一个 50ms 的任务.
+
+当第一个 A 子任务完成, 只剩下 B 任务, 会运行 10ms 的 B 任务, 然后 IO完成, A子任务 ready, STCF 选择第二个 A 子任务运行....
+
+[![image13.png](https://i.postimg.cc/8z5tLZpz/image13.png)](https://postimg.cc/qzPsTX6P)
+
+## 什么情况下, SJF 与 FIFO 的 turnaround time 一样 ?
+
+同时来的 job, 先到的 job length <= 后到的 job length
+
+## 什么情况下, SJF 与 RR 的 Response time 一样 ?
+
+SJF 同时来 3 个 job length 为 1, 1, 1 (slice time 为 1)
+
+## 当 SJF 的 job length 增加, Response time 会有什么趋势 ?
+
+递增
+
+## 当 RR 的 slice time 增加, Response time 会有什么趋势 ?
+
+递增
+
+## 为什么要引入 MLFQ, MLFQ 想要解决什么问题 ?
+
+MLFQ: The Multi-Level Feedback Queue
+
+这是一种 scheduler 算法
+
+MLFQ 有很多不同的 queue, 每一个 queue 给予不同的优先级.
+
+高优先级的队列会先运行
+
+在同一优先级队列中的 job, 使用 RR 调度算法.
+
+因此, MLFQ 的基础规则是:
+
+1. 如果 优先级 A > 优先级 B, A 运行
+
+2. 如果 优先级 A = 优先级 B, A & B 运行, 使用 RR 算法
+
+为了解决问题:
+
+1. 为了使用 SJF 或者 STCF, 需要知道 job 运行的时间, 但是实际上并不知道
+
+2. 为了减小 Response time
+
+## MLFQ 是如何给每个 job 确定其优先级的 ?
+
+基于已观察到的历史的行为, 进行确定.
+
+eg:
+
+如果一个 job 等待键盘输入, 经常放弃 CPU, 会获得高优先级.
+
+如果一个 job 长时间占领着 CPU, 会被 MLFQ 降低优先级.
+
+## MLFQ 队列是怎么样的 ?
+
+eg:
+
+[![image14.png](https://i.postimg.cc/zv7Fgg4h/image14.png)](https://postimg.cc/jnWfVLxq)
+
+以上 job 的优先级并不是固定的, 会随着时间被调整.
+
+## MLFQ 如何调整优先级 ? 具体规则是什么 ?
+
+MLFQ 在基础规则的基础上, 引入了接下来的规则:
+
+3 当一个 job 进入系统, 会被置于最高优先级队列
+
+4a 如果一个 job 运行消耗光了整一个 time slice, job 的优先级会被降低
+
+4b 如果一个 job 运行, 还没消耗光整一个 time slice, 就已经放弃了 CPU, 会被保留相同的优先级
+
+## 举例说明 MLFQ 如何调整优先级 ?
+
+eg1:
+
+当有一个长时间占据 CPU 的 job
+
+[![image15.png](https://i.postimg.cc/XYpkrXLZ/image15.png)](https://postimg.cc/QFZTP8Rs)
+
+time slice 是 10ms, 因为 job 一直占据整个 time slice, 所以该 job 的优先级一直被降低
+
+eg2:
+
+在 eg1 的基础上, 来了一个运行时间很短的 job
+
+[![image16.png](https://i.postimg.cc/CxGLHsm9/image16.png)](https://postimg.cc/qN7TpyfG)
+
+这种情况下 MLFQ 与 SJF 的算法有点类似.
+
+B(grey) 在 100ms 的时候进入系统, B需要花费 20ms 完成 job.
+
+B 在到达最低优先级队列之前, 完成了 job, 使用了 2 个 time slice
+
+然后 A 继续运行.
+
+MLFQ 并不知道进入系统的 job 的运行时间, 所以一开始默认进入系统的 job 是 short job, 放在最高优先级, 随着时间进行, 如果真的是 short job, job 会很快运行完毕, 如果是 long-job, 会被降低优先级.
+
+eg3:
+
+在 4b 规则中, 如果 job 还没运行完整个 time slice 就放弃 CPU, job 会一直保持一样的优先级.
+
+比如来了一个交互性的 job B, 只会占用 CPU 1ms, 然后就发起 IO, MLFQ 会一直保持 B 在最高优先级.
+
+[![image17.png](https://i.postimg.cc/VLMbpMKW/image17.png)](https://postimg.cc/Yhr9m4Kv)
+
+## MLFQ 存在什么问题 ?
+
+如果存在太多交互性的 job (也就是占据 CPU 很短的 job), 那么那些占据 CPU 比较长的 job 就永远得不到运行.
+
+有可能出现作弊行为, 比如:
+
+某个 program 在运行到 99% time slice 的时候, 发起 IO, 放弃 CPU, 那么这个 job 就会一直在最高优先级队列.
+
+可能另一种可能, 一个 program 一开始是 CPU-bound job (也就是比较长时间使用 CPU), 不过一段时间之后, 转换为 交互性 job, 但是此时 job 已经丢失了优先级.
+
+## 如何解决 CPU-bound job 可能一直得不到运行的问题 ?
+
+加入一个新的规则:
+
+*5 运行了一段时间 S 以后, 将所有的 job 都移动到最高优先级队列*
+
+可以解决两个问题:
+
+1 job 不会被遗忘, 即使是 CPU-bound job, 每次 boot 都运行一段时间
+
+2 当 job 从 CPU-bound 转化为交互性 job, 后来会保留其高优先级
+
+[![image18.png](https://i.postimg.cc/v8CV0Xtm/image18.png)](https://postimg.cc/K4rjzPVX)
+
+上图左侧中, 因为没有优先级 boot 机制, 低优先级队列一直得不到运行.
+
+## 如何解决作弊行为 (达到 99% 的时候, 放弃 CPU, 从而将自己保留在高优先级队列中) ?
+
+我们重写规则 4a 和 4b
+
+*4 如果 job 消耗完了在对应队列中分配给它的时间 (无论放弃了多少次 CPU), 它的优先级会降低.*
+
+[![image19.png](https://i.postimg.cc/0Nt6DCNP/image19.png)](https://postimg.cc/WDkbPgrH)
+
+如上图右侧.
+
+## MLFQ 还存在哪些问题 ?
+
+eg:
+
+需要多少队列 ?
+
+time slice 的大小 ?
+
+priority boot 的时间间隔是多少 ?
+
+不同的队列会有不同的 time slice, 高优先级的队列的 time slice 较短. 低优先级的队列较长.
+
+[![image20.png](https://i.postimg.cc/Wz0bWmsD/image20.png)](https://postimg.cc/H8sgjycH)
+
+## 可以人为的提高或者降低 job 的优先级吗 ?
+
+使用 nice 命令
+
+## 综上所述, MLFQ, 为什么叫 MLFQ ?
+
+有 multiple levels 队列,
+
+使用 feedback 机制决定 job 的优先级.
+
+## 总结 MLFQ 的 5 个规则 ?
+
+1. 如果 优先级A > 优先级B, A 运行
+
+2. 如果 优先级 A = 优先级 B, A & B 运行, 使用 RR 算法
+
+3. 当一个 job 进入系统, 会被置于最高优先级队列
+
+4. 如果 job 消耗完了在对应队列中分配给它的时间 (无论放弃了多少次 CPU), 它的优先级会降低.
+
+5. 运行了一段时间 S 以后, 将所有的 job 都移动到最高优先级队列
+
+## 什么是 seed ?
+
+一个 random seed (seed state / seed) 是一个数字 (或者vector), 被用来初始化 伪随机数生成器.
+
+
+
+
 
 
 
