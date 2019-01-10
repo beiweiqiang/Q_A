@@ -9,13 +9,17 @@
 
 2. Internet 为分布式应用提供网络服务
 
-## 什么是 end system ? host ?
+## 什么是 end system ? host ? 他们有什么不同 ?
 
 处于互联网边缘的网络设备, 比如我们的 PCs, Macs, ...
 
 也被称为 host, 因为其上运行着应用程序
 
-host 有时候会被分为两类: clients 和 servers
+host = end system, 二者没有本质上不同, 只是 host 有时候会被分为两类: clients 和 servers
+
+## Web server 是一个 end system 吗 ?
+
+是的
 
 ## 传输速率 (transmission rate) 使用什么作单位 ?
 
@@ -49,7 +53,7 @@ end systems 通过 ISP 接入 Internet
 
 *todo*
 
-## 什么是 protocols ?
+## 什么是 protocols ? 为什么 protocol 那么重要 ?
 
 用于控制 end system, packet switches 或者 Internet 中的其他组件, 其在 Internet 中发送和接收信息
 
@@ -57,7 +61,9 @@ end systems 通过 ISP 接入 Internet
 
 A protocol defines the format and the order of messages exchanged between two or more communicating entities, as well as the actions taken on the transmission and/or receipt of a message or other event.
 
-协议 定义了在两个或更多个通信实体之间交换的消息的格式和顺序，以及对传输和/或接收消息或其他事件所采取的动作。
+协议 定义了在两个或更多个通信实体之间交换的消息的格式和顺序，以及对传输和/或接收消息或其他事件所采取的动作.
+
+在 network 中, 不同的 protocol 被用于完成不同的通信任务.
 
 ## 什么是 congestion-control ?
 
@@ -98,4 +104,197 @@ packet 中会带上 destination 的 IP addresss
 每个 router 有自己的 forwarding table, 上面会记录 destination address 和 outbound link 的 mapping
 
 *todo*
+
+## circuit switching 和 packet switching 有什么不同 ?
+
+circuit switching: 在 end system 的会话一直持续的过程中, 在通信链路上所需要资源, 比如 buffer 会一直保留着. 因此其传输速率是不变的.
+
+packet switching: 不会保留资源, 会按需使用资源, 所以会造成一种结果: 有时候需要等待访问通信链路. 其传输速率可能会发生变化.
+
+## 有哪些类型的 delay ?
+
+当 packet 经过传播路径上的每个 node, 都会经历各种类型的 delay, 比如:
+
+nodal processing delay, queuing delay, transmission delay, propagation delay, 这些 delay 累加起来叫 total nodal delay
+
+[![4.png](https://i.postimg.cc/3NYtpRC4/4.png)](https://postimg.cc/62bVxBPt)
+
+nodal processing delay:
+
+如上图, packet 从上游已经到达 router A, router A 会检查 packet 的 header 决定该 packet 需要传输到哪个通信链路
+
+queuinng delay:
+
+packet 等待被传输到通信链路, 等待前面的 packets 都被传输出去
+
+transmission delay:
+
+将 packet 从 router A 传输到 output link 的开头, 即 packet 的长度 / 传输速度
+
+propagation delay:
+
+当一个字节被传输到 link 上, 开始传播到 router B, 即 距离 / 传播速度
+
+从 link 的开头传播到 router B 需要的时间称为 propagation delay, 该 delay 依赖于 link 的物理媒介
+
+一旦 packet 的最后一个字节到达 router B, packet 存储在了 router B 中, 只有当 packet 中的所有字节全部到达 router B 了, router 才开始 processing
+
+## 什么是 traffic intensity ?
+
+假设 a 是 packet 平均到达 node queue 的速度 (单位是 packets / sec)
+
+R 是 transmission rate (单位是 bits / sec)
+
+L 是每个 packets 的长度
+
+则我们定义 traffic intensity 为 La/R
+
+当 La/R > 1, packet 到达 queue 速度超过了 packet 被传输出去的速度, 这种情况下 queue delay 会增长到无限长 !
+
+我们要求 system 的 traffic intensity 不能超过 1, 即 La/R ≤ 1
+
+## 为什么会产生 packet loss ?
+
+因为在每个 router 中, queue 的容量是有限的, 如果一个 packet 到达的 router 中 queue 已经 full 了, router 会 drop 这个 packet
+
+当 traffic intensity 越接近 1, lost 情况越严重
+
+## network 中的分层结构是怎样的 ?
+
+改变其中某一层的实现, 只要对外还是提供同样的服务, 对其他层没有任何影响, 下层为上层提供服务
+
+每层的 protocol, 可能由 network 的 hardware 实现, 或者 software 实现, 或者二者一起实现
+
+[![5.png](https://i.postimg.cc/0yw7kvDL/5.png)](https://postimg.cc/0z9znLtf)
+
+Application-layer protocol 比如 HTTP, SMTP, 几乎都是由 software 实现在 end system
+
+Transport-layer 与 Application-layer 类似, 也是几乎由 software 实现
+
+physical-layer 和 data-link-layer 负责处理通信链路数据, protocol 由 hardware 实现
+
+network-layer 通常由 hardware 和 software 一同实现
+
+需要注意的是, 在 end system, packet switches, 以及组成 network 的其他组件之间, 也还有一层 protocol
+
+不同层的 protocol 组合起来称为 protocol stack
+
+## protocol stack 中各层的数据格式是怎样的 ?
+
+- Application-layer
+
+在 Application-layer 的数据形式是 message
+
+- transport-layer
+
+在 transport-layer 的数据形式是 segment, 是将 message 分隔为更小的 segment
+
+Internet 有两个 transport protocol, TCP 和 UDP, 他们都可以 transport 应用层的 message, TCP 提供一个面向连接的服务给他的应用
+
+- network-layer
+
+network layer 中的数据形式是 datagrams (数据报)
+
+network layer 有 IP 协议 和 许多的 routing 协议, Internet 是由网络组成的一个大网络, 在每个小网络的 network layer 中, network administrator 可以使用自己的 routing protocol, 但是都需要用 IP 协议, 因此 IP 是将网络组织在一起的胶水
+
+- link-layer
+
+link layer 的 packet 形式称为 frames
+
+将 packet 从一个 node (router 或者 host) 传递到下一个 node, network layer 会依赖 link layer 的服务
+
+在每一个 node 处, network layer 将 datagrams 向下传递给 link layer, link layer 将 datagram 沿着 router 递送到下一个 node, 下一个 node 的 link layer 将 datagram 向上传递给 network layer
+
+该层的 protocol 包括比如 Ethernet, WiFi... 一个 datagram 可能会被不同的 link-layer protocol 进行处理
+
+- physical-layer
+
+physical layer 将 frames 中的单独字节从一个 node 传输到下一个 node, 该层的 protocol 主要决定于链路的 transmission medium 传输媒介
+
+- 总结
+
+message -> segment -> datagrams -> frames -> bits
+
+## link layer 对于从 network layer 来的 datagrams 是原封不动的进行传递到下一个 node 吗 ?
+
+*todo*
+
+## 为什么需要 link layer ?
+
+*todo*
+
+## OSI 模型与 five-layer Internet protocol stack 有什么不同 ?
+
+OSI 模型中添加了两层在 Application-layer 和 transport-layer 之间,
+
+presentation-layer 和 session-layer
+
+presentation-layer: 提供数据压缩和解压的服务
+
+session-layer: 提供数据交换的 分隔 和 同步的服务, 包括构建 checkpointing 和 recovery scheme
+
+这两层是否需要和是否重要, 取决于应用开发者
+
+## 在 network 中, 数据如何流动 ?
+
+[![6.png](https://i.postimg.cc/j2TR7zFH/6.png)](https://postimg.cc/G8M00srt)
+
+上图中, routers 和 link-layer switches 都是 packet switches
+
+不过他们没有实现所有的协议栈, 只实现了低层的一些协议
+
+虽然 link-layer switches 无法识别 IP 地址, 但是它们可以识别 layer2 link-layer 的地址, 比如 Ethernet 地址
+
+## transport-layer 给 message 加的 header 包括什么内容 ?
+
+error-detection bits: 接收方用于检测 message 中是否有 bits 被改变
+
+*todo*
+
+## network-layer 给 segment 加的 header 包括什么内容 ?
+
+比如 source 和 destination 的 end system 地址
+
+##每一层的数据由什么组成 ?
+
+在每个 layer, packet 有两个类型的 fields: header fields 和 payload field
+
+payload 是从上一层来的 packet
+
+## 什么是 DoS ?
+
+denial-of-service
+
+*todo*
+
+## packet sniffer 的结构是怎样的 ?
+
+[![7.png](https://i.postimg.cc/qBSjr4Fd/7.png)](https://postimg.cc/kDNxF39j)
+
+packet capture library 将 link-layer frame 复制一份, 只需要 link-layer frame, 因为其中就包含了其上其他 layer 的数据信息
+
+packet sniffer 由两部分组成: packet capture library 和 packet analyzer
+
+packet analyzer 能理解 Ethernet frame 的格式, 可以从中区分出 IP datagram,
+
+packet analyzer 能理解 IP datagram 的格式, 可以从中提取出 TCP segment,
+
+packet analyzer 能理解 TCP segment 的结构, 可以从中提取出 HTTP message
+
+packet analyzer 能理解 HTTP protocol, 就能知道 "GET", "POST"...
+
+## wireshark 中 protocol 那么 ?
+
+在 wireshark 中, 所有 protocol name 都是小写的
+
+## wireshark 只是一个 packet analyzer 吗 ?
+
+是的
+
+## `ifconfig en0` 代表什么 ?
+
+在 wireshark 中是, Wi-Fi en0
+
+
+
 
