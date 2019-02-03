@@ -283,7 +283,7 @@ packet analyzer 能理解 TCP segment 的结构, 可以从中提取出 HTTP mess
 
 packet analyzer 能理解 HTTP protocol, 就能知道 "GET", "POST"...
 
-## wireshark 中 protocol 那么 ?
+## wireshark 中的 protocol name ?
 
 在 wireshark 中, 所有 protocol name 都是小写的
 
@@ -294,6 +294,135 @@ packet analyzer 能理解 HTTP protocol, 就能知道 "GET", "POST"...
 ## `ifconfig en0` 代表什么 ?
 
 在 wireshark 中是, Wi-Fi en0
+
+## 为什么处于 network-core 的 router 这些 component 不使用 5 layer 结构 ?
+
+*todo*
+
+## 有哪些 application architecture ?
+
+有两种:
+
+- client-server architecture
+- peer-to-peer(P2P) architecture
+
+## network architecture 与 application architecture 有什么不同 ?
+
+network architecture 是指整个 network 的架构, 包含了处于 network-core 的 router 和 network-edge 的 end system
+
+Application architecture 则是只有 end system 之间的通信
+
+program 之间的通信实际上是 process 之间的通信, 我们可以说 process 是运行着的 program
+
+在给予的通信会话的一对 process, 我们可以将 process 标签为 client 和 server
+
+## 在如何定义通信会话中的 client 一方和 server 一方 ?
+
+In the context of a communication session between a pair of processes, the process that initiates the communication (that is, initially contacts the other process at the beginning of the session) is labeled as the client. The process that waits to be contacted to begin the session is the server.
+
+在一对进程之间的通信会话的上下文中, 启动通信的进程 (即, 会话最初发起联系的一方进程) 被称为 client, 在会话中等待被联系的 process 称为 server
+
+## 什么是 socket ?
+
+a software Interface, 有两个功能:
+
+- 一个 process 可以将 message 发送给 socket
+- process 从 socket 中接收 message
+
+处于不同 end system 的两个 process 间使用 socket 进行通信
+
+[![8.png](https://i.postimg.cc/7YtXjcHP/8.png)](https://postimg.cc/crYQnFtP)
+
+socket 是 host 中, application layer 和 transport layer 之间的 interface
+
+application developer 对于 application-layer 一侧的 socket 有足够的控制能力, 但是对于 transport-layer 一侧的 socket 则很少控制能力.
+
+application developer 只能控制 transport-layer 侧 socket 的一部分内容:
+
+1. transport protocol 的选择
+2. 传递一些 transport-layer 的参数比如最大 buffer, 最大 segment sizes
+
+## message 为了到达目的 process, 需要什么信息 ?
+
+1. 目的 host 的地址: IP 地址
+2. 接收的 process 的唯一标识符: port number
+
+## transport-layer protocol 可以提供给 application 什么样的 service ?
+
+如果 protocol 提供一个可靠的数据传递 service, 即 reliable data transfer, 此时发送方 process 只需将 data 发送给 socket, 就知道该 data 一定会无错误的到达接收方 process.
+
+如果 transport-layer protocol 不提供可靠的数据传输, 称为 loss-tolerant application, 比如多媒体应用, 传统的 audio/video...
+
+- reliable data transfer
+比如: 银行存款
+
+- throughput
+比如: 网络电话对于 voice 的编码速率是 32kbs, 就需要保证这个吞吐速率
+
+- timing: 保证 message 在一定时间内到达 receiver process
+比如: 实时交互应用, 多人在线游戏...
+
+- security
+比如: sending host 的 transport protocol 对 data 进行加密, 在 receiving host 的 transport protocol 对 data 进行解密
+
+*todo*
+
+## throughput 是什么 ?
+
+吞吐量
+
+发送方 process 传递 bits 到接收方 process 的速率
+
+## 一些 application 对于 network 的要求
+
+[![9.png](https://i.postimg.cc/Y92WrrR5/9.png)](https://postimg.cc/xk7CgSW5)
+
+## TCP 提供什么 service ?
+
+TCP 提供一个面向连接的 service 和一个可靠的数据传输 service
+
+- connection-oriented service:
+TCP 在 application-level message 开始进行交互之前会需要先交换 client 和 server 的 transport-layer control information, 称为 handshaking. handshaking 阶段以后, 两个 process 的 socket 之间会建立起一个 TCP connection, 这个 connection 是全双工的, 即双发可以同时进行数据的发送, 当 application 结束 message 的发送, 必须结束这个 connection
+
+- reliable data transfer service:
+通信的process双方依赖 TCP 传输 data, 保证其传输无错误并保持合适的顺序.
+
+- congestion-control
+TCP 也提供 congestion-control 机制, 用于限制每个 TCP 连接的网络带宽
+
+## TCP 如何提供 securing 服务 ?
+
+*TCP 或者 UDP 没有提供加密的功能*, 即从 sending process 传入 socket 的数据, 与在 network 中, link 中传输的数据是一样的, 从而出现了 Secure Sockets Layer (SSL)
+
+TCP-enhanced-with-SSL 提供了传统的 TCP 没有提供的 process-to-process 的安全性 service, 比如 encryption, data integrity, end-point authentication
+
+SSL 并不是第三个 transport protocol, 而是 TCP 的一个 enhancement, 这个 enhancement *实现在了 application-layer*, SSL 在 application-layer 进行实现
+
+如果 application 想要使用 SSL service, 需要在 client 侧和 server 侧都包含 SSL 代码.
+
+SSL 有自己的 socket API 提供, 与传统的 TCP socket API 类似, 所以 application 此时是对 SSL socket 进行交互.
+
+当使用了 SSL, sending process 将 cleartext data 传递给 SSL socket, 在发送方 process SSL 将数据进行进行加密, 然后再传递给 TCP socket. 加密了的数据到达接收方 socket, TCP socket 将数据传递给 SSL socket, 进行解密, 最后将 cleartext 通过 SSL socket 传递给 receiving process.
+
+## UDP 的特点 ?
+
+1. UDP 是轻量级的 transport protocol
+2. UDP 是无连接的, 所以在两个 process 之间进行通信之前不会进行 handshake
+3. UDP 提供不可靠的数据传输服务, 即当一个 process 发送 message 到 UDP socket, UDP 不保证 message 会被传输到 receiving process, 即使 message 到达 receiving process 了, message data order 也不能保证
+4. UDP 不包含 congestion-control 机制
+
+## application-layer protocol 定义 ?
+
+application-layer protocol 定义了, 运行在不同 end system 上的 application process 之间如何传递 message
+
+定义了:
+- 交换的 message 的类型, 比如 request message 和 response message
+- 不同 message 类型的语法
+- 在一个 message 中, 不同字段的语义
+- 一个 process 何时以及如何发送 message 或者响应 message
+
+另外, 有些 application-layer 的协议是私有的, 而 HTTP 协议是开源的
+
 
 
 
