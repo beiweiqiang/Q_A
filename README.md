@@ -1,5 +1,5 @@
-# Q_A
+# Q and A
 
-收集到的问题与其答案
+- [OS](./OS)
 
-- OS 相关 [link](./OS)
+- [computer network](./computer_network)
