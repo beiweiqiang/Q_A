@@ -1026,6 +1026,170 @@ HA2 = MD5(method:digestURI)
 response = MD5(HA1:nonce:HA2)
 ```
 
+## application-layer 提供了什么 service ?
+
+在 TCP/IP model 中, application-layer 包含了 network 中两个 process 之间进行通信的 protocol 和 interface method
+
+## 为什么 network router 不需要高层的 layer ?
+
+network router 并不关心 transport-layer 的 segment, 更不关心 application-layer 的 message
+
+network router 不关心传递什么数据, 只关心传递的目的地是哪里, 只关心 *host*
+
+## transport-layer 提供什么服务 ?
+
+transport-layer 提供运行在不同 host 上 process 间的 logical communication
+
+logical communication: 也就是说, 从 application 的角度看来, 仿佛 process 之间是直接通信的.
+
+network routers 并没有实现 transport-layer protocol
+
+network routers 只关心到 network-layer 的 datagram
+
+[![24.png](https://i.postimg.cc/zvY2Xz6K/24.png)](https://postimg.cc/tZDNBjX4)
+
+## transport-layer 和 network-layer 之间的关系 ?
+
+transport-layer 提供运行在不同 *host 上 process* 之间的 logical communication
+
+network-layer 提供不同 *host* 之间的 logical communication
+
+也就是, network-layer 知道应该将数据传递给哪个 host, transport-layer 知道应该将数据传递给哪个 process
+
+computer network 会有多个 transport protocol, 每个 protocol 向上对 application 提供不同的 service model, 比如 UDP, TCP
+
+在某些 service 上, transport protocol 会受限于底层 network protocol, 比如 delay 和 bandwidth 的保证
+
+在某些确定的 service 上, transport protocol 不收底层影响, 比如 transport protocol 可以提供 reliable data transfer service
+
+## UDP, TCP 全称是什么 ?
+
+在 TCP/IP network 中, transport layer 向上对 application layer 提供两种不同的 protocol
+
+UDP(User Datagram Protocol)
+
+TCP(Transmission Control Protocol)
+
+## network layer protocol 只有 IP(Internet Protocol) 吗 ?
+
+*todo*
+
+## network layer 的 protocol, IP 提供什么 service ?
+
+提供尽力的 delivery service
+
+但是不保证 segment 能到达, 不保证 segment 到达的顺序, 不保证 segment 的完整性, 是一个 unreliable service
+
+每个 host 至少有一个 network layer address, 称为 IP address
+
+## 什么是 transport-layer 的 multiplexing 和 demultiplexing ?
+
+UDP 和 TCP 的基础任务是将 IP 的 service: 在两个 host 之间提供 delivery service, 扩展为: 在两个 process 之间提供 delivery service
+
+transport layer 将 host-to-host delivery 扩展为 process-to-process delivery, 称为 transport-layer multiplexing 和 demultiplexing
+
+在接收端 host, transport layer 接收到 segment 以后, 检测该 segment 中的 field, 判断应该 deliver 给哪个 socket, 这个过程称为 demultiplexing
+
+在 transport layer, 将不同 sockets 发送的 data chunks 收集起来, 封装并添加 header info 从而形成 segment, 然后将 segment 传递给 network layer, 这个过程称为 multiplexing
+
+transport layer multiplexing 需要:
+1. socket 有唯一的 identifier
+2. 每个 segment 有特定的 field 标识该 segment 会 deliver 给哪个 socket, 特定的 field 就是 source port number field 和 destination port number field
+
+[![25.png](https://i.postimg.cc/NMmbVhFM/25.png)](https://postimg.cc/CBMjBQjT)
+
+## 什么是 port number ?
+
+每个 port number 是一个 16-bit number, 从 0~65535
+
+从 0~1023 的 port number 称为 well-known port number, 被限制使用, 他们是为 well-known application protocol 而保留的, 比如 HTTP 使用 80, FTP 使用 21
+
+## UDP 提供什么服务 ?
+
+UDP 只提供两个服务:
+1. process-to-process delivery
+2. 在 segment header 中包含 error-detection field
+
+## TCP 提供什么服务 ?
+
+在 UDP 的基础上, 还提供:
+3. reliable data transfer
+4. congestion control
+
+## program, process, socket, port number 之间的关系 ?
+
+process 是一个运行中的 program
+
+每个 socket 有一个 unique identifier
+
+transport layer 接收到 deliver data 以后并不是直接交给 process, 而是给 intermediary socket
+
+每个 socket 的 identifier 的格式依赖于 socket 是 UDP socket 还是 TCP socket
+
+## UDP segment 包含什么内容 ?
+
+application data,
+
+source port number,
+
+destination port number,
+
+其他两个值 *todo*
+
+## 为什么 segment 中要包含 source port number ?
+
+当 receiving host 想要给 sending host 发送数据, 比如 ack pkt
+
+## UDP socket 通过什么进行唯一区分 ?
+
+two-tuple 包含一个 destination IP address 和一个 destination port number
+
+根据 IP address 和 port number 唯一区分
+
+## TCP socket 通过什么进行唯一区分, TCP socket 与 UDP socket 有什么不同 ?
+
+TCP socket 通过一个 four-tuple 进行唯一区分: (通过四个元素才能进行唯一区分)
+
+source IP address,
+
+source port number,
+
+destination IP address,
+
+destination port number
+
+因此, 在 *UDP socket* 中, 存在情况: 如果两个 UDP segment 有不同的 source IP address and/or source port number, 但是他们的 destination IP address 和 destination port number 是一样的, 这两个 segment 会通过相同的 destination socket 被 deliver 到相同的 destination process 中
+
+而在 TCP socket 中, 只有 4 个值都相同的 segment 才会通过相同的 socket, deliver 到相同的 process
+
+在 client 端想与 server 建立 TCP 连接, 调用:
+
+```
+clientSocket = socket(AF_INET, SOCK_STREAM)
+clientSocket.connect((serverName,12000))
+```
+
+此时 client 会给 socket 分配 source port number
+
+在 server 端使用:
+
+```
+connectionSocket, addr = serverSocket.accept()
+```
+
+创建一个新的 socket
+
+server host 可以支持同时的 TCP connection socket, 每个 socket 依附到一个 process 中, 每个 socket 通过 four-tuple 进行唯一区分
+
+[![26.png](https://i.postimg.cc/FswjcWDs/26.png)](https://postimg.cc/fJjtQvG6)
+
+如上图, 每个 socket 依附到一个 process, 共产生了 3 个 process, 每个 TCP socket 通过一个 four-tuple 标识
+
+## 一个 process 可以有一个或多个 sockets ?
+
+是的, 一个 process 中可以存在多个 thread, 每个 thread 管理一个 socket
+
+高性能的 web server, 通常只是用一个 process, 当来一个 connection, 会创建一个新的 thread 处理这个到来的 connection socket, 因此存在多个 connection socket 依附到同一个 process 上
 
 
 
