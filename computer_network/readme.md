@@ -423,6 +423,608 @@ application-layer protocol 定义了, 运行在不同 end system 上的 applicat
 
 另外, 有些 application-layer 的协议是私有的, 而 HTTP 协议是开源的
 
+## 如何区分 应用(application) 和 应用层协议(application-layer) ?
+
+protocol 是 application 的一部分, 比如 Web application 会包括:
+
+- 标准文档格式 (HTML)
+- Web browser
+- Web server (既包含 client, 也包含 server)
+- protocol (HTTP)
+
+## HTTP 是什么 ?
+
+HyperText Transfer Protocol
+
+HTTP 通过 2 个 program 进行实现: client program 和 server program
+
+HTTP 基于 TCP transport protocol
+
+HTTP client 会先与 server 端初始化建立起一个 TCP 连接, 然后 browser process 与 server process 通过 socket 接口访问 TCP
+
+client 发送 HTTP request message 到 socket 接口, 以及从 socket 接口中接收 HTTP response message
+
+server 端发送 message 给 client 端, 并不会记录任何与 client 有关的信息 (HTTP 是 stateless protocol), 以致于下一次相同的 client 请求相同的 message, server 会重复一样的工作
+
+对于 Web page 在 client 如何进行解析, HTTP 毫不关心
+
+80 端口是 HTTP 的默认端口
+
+*todo*
+
+## 什么是 Web page ?
+
+一个 Web page (或者称为 document) 包含很多的 objects, 一个 object 是一个 file, 比如 HTML file, JPEG file... file 通过 URL 进行指定
+
+## URL 的组成 ?
+
+每个 URL 由两部分组成, server 的 hostname 和 object 的 path name
+
+## layer architecture 的优点 ?
+
+协议被设计成分层结构, 优点, eg:
+
+HTTP 不需要担心 数据的丢失以及 TCP 如何从 loss 中恢复数据, 这是 TCP 以及 protocol stack 底层 protocol 的工作
+
+## 为什么会有两种 connection 方式: non-persistent connection 和 persistent connection ?
+
+一系列的请求可能是连续性的到来, 可能是周期性的到来, 也可能是不定期的到来.
+
+client-server 的交互是建立在 TCP 上的, 需要决定:
+
+- 每个 request/response 通过分开的 TCP connection 进行 ?
+- 所有的 request/response 在同一个 TCP connection 进行 ?
+
+HTTP client 是默认 persistent connection 的, 但是可以配置为 non-persistent connection
+
+## non-persistent connection HTTP 是如何进行的 ?
+
+1 HTTP client process 与 server 初始化 TCP connection
+
+... (建立 TCP connection)
+
+server 在发送完 response message 以后, 会*主动通知 TCP 关闭 TCP connection*, 但是 TCP 实际上不会马上关闭 connection, 会等到 client 接收到 message 以后才进行 terminate connection
+
+## 什么是 RTT ?
+
+round-trip time (RTT), 一个 small packet 从 client 发送到 server, 然后再从 server 返回到 client 经历的时间.
+
+RTT 包括:
+1. packet processing delay
+2. packet propagation delay
+3. packet queuing delay
+
+## 从 TCP connection 开始建立, 到 file 完成传输共需要多久 ?
+
+[![10.png](https://i.postimg.cc/g2CJ03M5/10.png)](https://postimg.cc/TKcG75vq)
+
+client 发送一个 small TCP segment 给 server, server 答复并响应一个 small TCP segment, 最后 client 答复 server.
+
+three-way handshake 中的首两次花费了一个 RTT
+
+接着 client 发送 HTTP request message 以及 three-way handshake 的第三步, 可以一同发送到 TCP connection
+
+因为 server 发送 file 需要 transmission delay
+
+整个关于 file 的 request/response 时间是 2 个 RTT 加上 server 的 transmission delay time
+
+## non-persistent connection 有什么缺点 ?
+
+1. 对于每个 connection, 在 client 端和 server 端都需要分配 TCP buffer 和 TCP variables, 对于 server 端更严重, 因为会同时服务多个 client
+2. 对于每个 file object, 都需要经历 2 个 RTT (1 个 RTT 建立 TCP connection, 1 个 RTT request/response object)
+
+## persistent connection 什么时候关闭 TCP 连接 ?
+
+HTTP server (HTTP client 也可以发起) 会在 TCP connection 不使用一段时间以后进行关闭, 该时间可以配置
+
+## 有多少种 HTTP message ?
+
+有 2 种类型的 HTTP message: request message, response message
+
+## HTTP request message 格式是怎样的 ?
+
+eg:
+```
+GET /somedir/page.html HTTP/1.1
+Host: www.someschool.edu
+Connection: close
+User-agent: Mozilla/5.0
+Accept-language: Fr
+```
+
+message 使用 ordinary ASCII text 编写
+
+每一行会跟着一个 carriage return 和一个 line feed, 最后一行会有额外的, carriage return 和 line feed, 即 CRLF
+
+第一行称为 request line, 接下来的行称为 header lines
+
+request line 包含 3 个 field: method field, URL field, HTTP version field
+
+method field 可以取的值: GET, POST, HEAD, PUT, DELETE
+
+Host 行表示请求的 object 位于哪里, 在 Web proxy caches 中 host header line 是必须的, 其他情况下非必须
+
+Accept-Language header是 content negotiation headers 之一
+
+[![11.png](https://i.postimg.cc/Y0D2BFGd/11.png)](https://postimg.cc/ctYGQrc3)
+
+在 request message 的最后部分是 entity body
+
+form表单请求不一定都要使用 POST method, 也可以使用 GET method
+
+HEAD 与 GET 类似, 但是 HEAD 返回的 message 中不会包含 request object
+
+## HTTP response 的格式是怎样的 ?
+
+eg:
+```
+HTTP/1.1 200 OK
+Connection: close
+Date: Tue, 09 Aug 2011 15:44:04 GMT
+Server: Apache/2.2.3 (CentOS)
+Last-Modified: Tue, 09 Aug 2011 15:11:03 GMT
+Content-Length: 6821
+Content-Type: text/html
+
+(data data data data data ...)
+```
+
+response message 包括 3 部分: status line, header lines, entity body
+
+status line 包含 3 个 fields: protocol version field, status code, status message
+
+下面解析每个 header 的作用:
+- `Connection: close` 告诉 client 发送完这个 message 以后会关闭 TCP connection
+- `Date: ` 指示 server 创建 HTTP response 的时间. 不是 object 创建或者上一次修改的时间, 而是 server 从 file system 中获取 object, 将 object 插入 response message, 并发送 response message 的时间.
+- `Server: ` 类似于 client 的 `User-agent: `
+- `Last-Modified: ` 指示 object 创建或者上一次修改的时间, 在 object caching 中作用很大
+
+object 的类型是通过 `Content-Type: ` 指示, 而不是通过文件后缀类型
+
+[![12.png](https://i.postimg.cc/KvdF7xn3/12.png)](https://postimg.cc/ppYgRNcP)
+
+## telnet 工具使用 ?
+
+比如 `telnet cis.poly.edu 80` 会打开一个与 host 关联的 TCP 连接, 然后可以进行 HTTP request:
+
+```
+GET /~ross/ HTTP/1.1
+Host: cis.poly.edu
+```
+
+## 用户如何通过 Cookies 与 server 交互 ?
+
+因为 HTTP server 是 stateless, 为了对用户保持跟踪, 引入了 Cookies.
+
+cookie 技术由 4 部分组成:
+1. 在 HTTP response message 包含 cookie header line
+2. 在 HTTP request message 包含 cookie header line
+3. 用户的 end system 中会维护并管理一份 cookie file
+4. web site 会有自己的 database
+
+server 发送 `Set-cookie: ` 到 client, client 将指定的 cookie添加到 cookie file, 接下来对 site 的每次 request 都会带上该 cookie
+
+之后, 如果用户在这个 site 上进行了注册, server 会将该用户与过去的 cookie 行为进行绑定
+
+Cookies 就好像在 stateless HTTP 上创建了一个 user session layer
+
+## LAN 是什么 ?
+
+*todo*
+
+## Web cache 是什么 ?
+
+又称为 proxy server
+
+行为类似于原始 Web server, 可满足 HTTP request
+
+Web cache 有自己的硬盘存储, 会将最近 request 的 object 拷贝一份存储下来
+
+[![13.png](https://i.postimg.cc/7Yc7gGs1/13.png)](https://postimg.cc/svYvzXR1)
+
+步骤:
+1. browser 与 Web cache 建立 TCP connection, 然后向 Web cache 发送一个 HTTP request 请求 object
+2. Web cache 检查自己是否有对应 object 的拷贝, 如果有, Web cache 直接向 client 发送 HTTP response
+3. 如果 Web cache 没有对应的 object, Web cache 会与 origin server 建立 TCP connection, 然后 Web cache 向 origin server 发送 HTTP request 请求对应的 object
+4. Web cache 接收到来自 origin server 的 object 以后, 保存一份 copy 在自己本地, 然后再向 client 发送 HTTP response (client 与 Web server 的 TCP connection 已经建立过了)
+
+可以看出, Web cache 既是 server 也是 client
+
+优点:
+1. 减少对于 origin server 的 client request
+2. 减少机构 access link 到 Internet 上的流量, 减少在 Internet 中的流量
+
+## 在 Web cache 中, hit rates 指标是什么 ?
+
+request 可以通过 cache 进行满足的概率, 一般是 0.2 到 0.7
+
+## 什么是 Conditional GET ?
+
+如果 file 一直缓存在 Web cache 会引发另一个问题 file 过期了怎么办 ?
+
+因此, HTTP 有一个机制, 允许 web cache 校验该 object 是否是最新的, 这种机制叫做 Conditional GET
+
+一个 HTTP request message 是 Conditional GET 需要满足:
+1. request message 是 GET method
+2. request message 包含 `If-Modified-Since: ` header
+
+从 origin server 返回给 Web cache 的 response header 里面会包含 `Last-Modified: ` header, web cache 会将其存下代表该文件的最后修改时间
+
+当 Web cache 需要校验这个 object 的时候, 会在 request 中带上 `If-Modified-Since: ` 并且该值与之前的 server 返回的 `Last-Modified: ` 值一致, 用于校验该 object 在这个时间点之后是否有更新过, 如果更新过, origin server 需要返回最新的 object, 如果这个时间点之后 object 没有更新, origin server 会返回 304 Not Modified, 此时 response 中的 data field 为空
+
+## File Transfer: FTP 如何建立交互 ?
+
+用户首先提供远程 host 的 hostname, 本地的 FTP client process 与 FTP server 建立 TCP 连接.
+
+用户提供用户标识和密码, 作为 FTP command 通过 TCP 连接发送给 FTP
+
+## HTTP 和 FTP 有什么不同 和 相同 ?
+
+相同:
+1. 都是 file transfer protocol
+2. 都建立在 TCP 之上
+
+不同:
+FTP 使用了并行的两个 TCP 连接:
+1. 一个是 control connection, 用于在两个 host 之间发送 control 信息, 比如用户标识, 密码, 一些操作 remote host 的指令
+2. 一个是 data connection, 用于用户文件的传输
+
+[![14.png](https://i.postimg.cc/yYVgchyS/14.png)](https://postimg.cc/3WcxHv6K)
+
+因此我们说:
+- FTP 的 control information 是 out-of-band
+- HTTP 的 control information 是 in-band (在相同的 TCP 连接里既传输 control information 也传输 file)
+
+## FTP 如何进行 data transfer ?
+
+在一个 FTP session 中, control connection 会一直持续, 但是每传输一个 file 都会创建一个新的 data connection
+
+在一个 session 内, FTP server 需要记住该 user 的 state, 比如该 user 正在浏览哪个目录
+
+## FTP 的 commands 和 replies ?
+
+为了分隔开连续的 commands, 使用 carriage return 和 line feed 分隔每个 command
+
+每个 command 包含 4 个大写的 ASCII 字符, 以及可选的参数, 比如:
+- USER username: 发送 user 标识给 server
+- PASS password: 发送 user password 给 server
+- LIST: 让 server 传送回当前目录下的文件列表 (server 会新建一个 data connection)
+- RETR filename: 从 remote host 获取当前目录下一个 file (server 会新建一个 data connection)
+- STOR filename: 用于将一个 file 发送给 remote host
+
+每个 command 都会返回一个 reply. reply 格式是一个 status code 加上一个 phrase, 比如:
+
+331 Username OK, password required
+
+## Internet mail system 包括哪些组件 ?
+
+包括三部分: user agents, mail servers, Simple Mail Transfer Protocol(SMTP)
+
+[![15.png](https://i.postimg.cc/6qzQYSf4/15.png)](https://postimg.cc/vxgMm0jG)
+
+user agents 让用户可以进行 read, reply, forward, save, compose message
+
+当用户 compose 完 message 进行发送, message 会发送到他的 mail server, message 进入 mail server 的 outgoing message queue, 待发送队列
+
+当用户想要阅读 message, user agent 会从 mail server 中拉取最新的 message 回来
+
+SMTP 是 Internet electronic mail 的 application-layer protocol
+
+SMTP 有两端: client side 和 server side, 两端都是 mail server, 双方角色可以互换, 发送方作为 client side
+
+## 如何标识一个 host ?
+
+使用 hostname, 但是 hostname 包含不同长度的字母符号, 对应 router 来说处理会困难
+
+host 也通过 IP address 进行标识
+
+## IP address ?
+
+一个 IP address 包含 4 个字节, 有一个固定的层级结构
+
+比如 121.7.106.83
+
+每一个区间是十进制数 0~255
+
+## DNS 主要提供了什么服务 ?
+
+人们通常更习惯于记忆 hostname 标识, 但是 routers 更倾向于长度固定的, 具有层级结构的 IP 地址, 为了协调, 我们需要一个 directory service 提供 *将 hostnames 翻译为 IP 地址的服务*.
+
+这是 DNS (domain name system) 的主要服务
+
+## DNS 由什么组成 ?
+
+DNS 是一个由层级结构的 DNS servers 实现的 distributed database
+
+DNS 是一个 application-layer protocol, 允许 host 查询 distributed database
+
+DNS protocol 运行在 UDP protocol 之上, 使用 port 53
+
+DNS 通常会被其他 application-layer protocol 使用, 比如 HTTP, SMTP 和 FTP, 用于将用户提供的 hostname 翻译为 IP 地址
+
+## DNS 的翻译服务是如何工作的 ?
+
+1. 用户机器运行 DNS client
+2. browser 从用户输入的 URL 中提取 hostname, 发送给 DNS client
+3. DNS client 发送请求给 DNS server
+4. DNS client 收到 reply, 包含 hostname 的 IP 地址
+5. browser 从 DNS client 接收到 IP 地址, 开始初始化 TCP 连接
+
+因为加多了一个 hostname 翻译的过程, DNS 会添加额外的 delay, 不过, IP 地址通常会被缓存在 "最近" 的 DNS server 中
+
+## DNS 还提供什么其他服务 ?
+
+1 Host aliasing
+
+一个复杂的 hostname 可以有 1 个或多个更方便人类记忆的 alias name
+
+原始 hostname 称为 canonical hostname, 别名 hostname 称为 alias hostname
+
+2 Mail server aliasing
+
+比如提供给用户的 mail 地址是 bob@hotmail.com, 但是 Hotmail mail server 的 hostname 实际上可能会复杂
+
+3 Load distribution
+
+在多个相同的 server, 但是 IP 地址不同, 多个 IP 地址可以关联到一个 canonical hostname
+
+DNS 对外进行翻译的时候, 对应同一个 canonical hostname, 提供不同的 IP 地址让 client 进行选择
+
+## 如果 DNS 系统不做成分布式的, 而是集中式 (centralized design) 的, 有什么缺点 ?
+
+1 a single point of failure
+
+如果这个 DNS server crash, 整个 Internet 都 crash
+
+2 traffic volume
+
+一个 DNS server 需要处理所有 DNS query
+
+3 distant centralized database
+
+一个 DNS server 不能靠近所有的 querying client, 因此该 server 离某些 client 会非常遥远
+
+4 maintenance
+
+该 DNS server 需要维护所有 Internet 中的 host, 且经常需要进行更新
+
+所以 DNS 会引入 distributed 技术, DNS 是 Internet 中实现 distributed database 的一个极好的例子
+
+不是一个 DNS server 有所有的 hsot mapping. 这些 mapping 会分布在所有的 DNS server 中.
+
+## DNS server 分为多少层 ?
+
+大概会分为三层 DNS server:
+1. root DNS server
+2. top-level domain (TLD) DNS server (com, org, edu...)
+3. authoritative DNS server (yahoo.com, amazon.com...)
+
+[![16.png](https://i.postimg.cc/KYQscDfr/16.png)](https://postimg.cc/FfdxDc27)
+
+实际上还有一类重要的 DNS server: local DNS server
+
+严格上来说 local DNS server 不属于层级之一, 但却是 DNS architecture 组成之一
+
+每个 ISP(Internet Service Provider) 都有一个 local DNS server
+
+当一个 host 发送一个 DNS query, query 会发送到 local DNS server, local DNS server 扮演着 proxy 的角色, 将该 query 转发给 DNS server 中的其他层级
+
+## local DNS server 如何工作 ?
+
+[![17.png](https://i.postimg.cc/cLWSrTRV/17.png)](https://postimg.cc/N5dVn6P4)
+
+代替 host 进行 host 中的 DNS client 进行工作
+
+1. host 中 DNS client 将 DNS query message 发送给 local DNS server
+2. local DNS server 将 query 转发给 root DNS server, root DNS server 返回其中一个 edu TLD DNS server IP 地址
+3. local DNS server 将 query 发送给 TLD DNS server, TLD DNS server 返回 `umass.edu` authoritative DNS server IP 地址
+4. ...
+
+注意: 之前我们都假设 TLD DNS server 知道 authoritative DNS server 的 IP 地址, 但是不总是知道的, 可能 TLD DNS server 只知道一个 intermediate DNS server, 这种情况下 local DNS server 还需要再经历一次 intermediate DNS server query
+
+## 有多少种 DNS query 的方式 ?
+
+两种: recursive queries (迭代查询) 和 iterative queries (重复查询)
+
+之前上图是 iterative queries
+
+下图是 recursive queries:
+
+[![18.png](https://i.postimg.cc/Y9WnNBk8/18.png)](https://postimg.cc/r0qNcbDt)
+
+## DNS client 如何与 DNS server 沟通 ?
+
+比如我们访问 www.amazon.com
+
+1. client 会先与其中一个 root server 沟通, 获取 `com` TLD server 的 IP 地址
+2. client 与其中一个 TLD server 沟通, 获取 `amazon.com` authoritative server 的 IP 地址
+3. client 与 amazon.com 其中一个 authoritative server 沟通, 获取 `www.amazon.cn` 的 IP 地址
+
+## DNS caching 有什么作用 ?
+
+1. 提高 DNS query 的 delay performance
+2. 减少 DNS message 在 Internet 中的流转数量
+
+在一个 query chain 中, 当 DNS server 接收到一个 DNS reply, 会将接收到的 hostname-IP mapping 保留在本地内存
+
+比如 local DNS server 会保留各级 DNS server 查询结果. 通常会保留 2 天然后才 discard
+
+## resource records (RRs) 是什么 ?
+
+DNS 分布式数据库存储的 数据记录
+
+## RR 的格式是怎样的 ?
+
+resource record 是一个 four-tuple (四个元素的 item): (Name, Value, Type, TTL)
+
+TTL 是记录 resource record 的时间, 用于记录 cache 什么时候需要移除, 下面我们先忽略 TTL
+
+## RR 的 Type 有什么类型 ?
+
+有四种 Type:
+- A
+
+提供标准的 hostname 到 IP address 的映射, 比如: (relay1.bar.foo.com, 145.37.93.126, A)
+
+- NS
+
+是 domain 与 authoritative DNS server 的映射, 比如: (foo.com, dns.foo.com, NS)
+
+用于找到 authoritative DNS server 以后再次进行链式查询
+
+- CNAME
+
+记录 alias hostname 与 canonical hostname 的映射, 比如: (foo.com, relay1.bar.foo.com, CNAME)
+
+- MX
+
+记录 alias hostname 与 canonical mail server 的映射, 比如: (foo.com, mail.bar.foo.com, MX)
+
+## DNS query message 和 DNS reply message 的格式是怎样的 ?
+
+[![22.png](https://i.postimg.cc/dVGM8fmq/22.png)](https://postimg.cc/zyDPN0cM)
+
+DNS query message 和 DNS reply message 的格式相同
+
+分为几部分:
+
+- header section
+
+开头的 12 bytes 是 header section, 其中 Identification 是 message 的唯一标识, 对应的 query 与 reply 的 Identification 一致
+
+在 Flags 区域, 有 1-bit 用于区分 query/reply flag
+
+- question section
+
+包含用于 query 的 message, 比如 name, type
+
+- answer section
+
+包含 DNS server 返回的 resource record, 会包含 Type, Value, TTL
+
+- authority section
+
+- additional section
+
+## 一个 network application 包括什么 ?
+
+经典的 network application 包含 2 个 program, 一个 client program 和一个 server program, 运行在两个不同的 end system 中
+
+## 有几种类型的 network application ?
+
+1. 实现了开源协议, 比如 RFC 的 network application
+
+如果 client 和 server 实现 RFC 协议, 就要使用熟知的端口
+
+2. 实现的协议是私有的
+
+避免使用熟知的开源协议的端口
+
+*todo 如何实现私有的协议 ?*
+
+## 开发一个 network application 首先需要考虑什么 ?
+
+application 运行在 TCP 还是 UDP 之上
+
+## 如何基于 UDP 创建一个 socket program ?
+
+每个 process 类似一个 house, 每个 process 的 socket 类似一个 door
+
+application 的 developer 可以控制 application-layer 侧 socket 的任何东西, 但是对于 transport-layer 侧的 socket 控制甚少
+
+process 在将 packet 发送给 socket 之前, 需要给 packet 依附上目标地址和目标 port, 当一个 socket 创建以后, 会分配给他一个 port number, 作为标识符
+
+发送方的 source address 和 port 也会被依附到 packet 中, 但是这不是在 application-layer 做, 而是 OS 完成的.
+
+[![19.png](https://i.postimg.cc/52zJsy1W/19.png)](https://postimg.cc/75qj6xfK)
+
+## 如何基于 TCP 创建一个 socket program ?
+
+TCP application, 在 client 和 server 开始发送数据之前, 需要进行 TCP connection 的建立
+
+建立了 TCP 连接以后, 只需要将 data 丢进 socket 就行, 不需要指定 destination address, 与 UDP 不一样, UDP 在每次将 data 丢进 socket 之前都需要给 packet 添加 destination address
+
+基于 TCP 的 socket program, 会为每个 client 建立一个新的 socket, 这是与特定 client 之间的 connection socket, 而 server 运行时建立的 socket 只是用于接收 TCP handshake 的第一部分的 client knock, 之后 server 会为每个 client 建立单独的 connection socket (对于 client 端, 只有一个端口, 对于 server 端, 有两个端口, 如下图)
+
+[![20.png](https://i.postimg.cc/SKph34N2/20.png)](https://postimg.cc/jDvmnGft)
+
+[![21.png](https://i.postimg.cc/JhcLWFGT/21.png)](https://postimg.cc/bGJMx30b)
+
+## browser 请求 image url 是 serial 还是 parallel ?
+
+parallel
+
+如下图的 1, 2 行
+
+[![23.png](https://i.postimg.cc/sfB3Mw82/23.png)](https://postimg.cc/0rqT3d9g)
+
+## http client 除了 browser 还有什么 ?
+
+*todo*
+
+## 如何进行 HTTP access authentication ?
+
+已经建立了一套 HTTP Access Authentication Framework
+
+HTTP client 如果想要访问的 page 属于 protected realm
+
+server 会返回 401 Unauthorized 状态码和 WWW-Authenticate header field
+
+在该 header 里会说明 client 需要如何进行相应的 authentication
+
+client 进行必要的认证, 再次发送 request, 并带上 Authentication header, header 里包含 client 的 credentials
+
+如果 server 接受该 credentials, 则返回对应的 request page
+
+如果 server 不接受则依旧返回 401
+
+在 WWW-Authenticate header 和 Authentication header 中包含的内容依赖于选择的 authentication scheme
+
+## 有哪些 authentication scheme ?
+
+目前广泛使用的是两种 scheme:
+
+Basic Access Authentication
+
+Digest Access Authentication
+
+## Basic Access Authentication 工作原理 ?
+
+server 返回 401 并带上 WWW-Authentication header, header 中包含 token "Basic" 和一个 name-value pair, value 指定 protected realm 的 name, eg:
+
+`WWW-Authenticate: Basic realm="Control Panel"`
+
+对应的, client 端会要求获取 username 和 password
+
+client 在下一次 request 中会带上 Authentication header, header 的内容是带上 token "Basic" 和一个 base64-encoded 字符串, 字符串值为 base64(username:password), eg:
+
+`Authorization: Basic QWRtaW46Zm9vYmFy`
+
+缺点: 网络监听者 获取得到 Authorization header 以后就可以通过 base64-decode 得到 username 和 password
+
+## Digest Access Authentication 工作原理 ?
+
+引入了密码学, 通常使用 MD5 加密
+
+MD5 会将一个任意长度的字符串计算为 128 位的数字, 同时MD5 是一个 one-way function
+
+但是仍然存在一个问题, 如果监听者拿到了 md5 hash string, 并使用该 string 对 server 进行重复发送, 模拟了与用户相同的请求, 这称为 replay attack
+
+为了解决 replay attack, 因此引入了 nonce 机制,
+
+server 返回 401, 在 WWW-Authenticate header 中, 会包含 token "Digest", realm="XXX", nonce="XXX" 和其他必要字段, 其中 nonce 是一个唯一的, 由 server 维护的值
+
+client 接收到以后, 结合 username, password, realm, nonce 进行加密计算, 再发送给 server,
+
+因为 server 不会接收两次一样的 nonce, 所以可以避免 replay attack
+
+一个简单的计算算法:
+
+```
+HA1 = MD5(username:realm:password)
+HA2 = MD5(method:digestURI)
+response = MD5(HA1:nonce:HA2)
+```
 
 
 
