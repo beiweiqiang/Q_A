@@ -12,7 +12,7 @@
 
 - [面向对象](./object_oriented)
 
-- [数据结构]()
+- [数据结构](./data_structure)
 
 - [JavaScript, CSS, HTML 相关]()
 
