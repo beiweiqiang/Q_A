@@ -14,7 +14,7 @@
 
 - [数据结构](./data_structure)
 
-- [JavaScript, CSS, HTML 相关]()
+- [JavaScript 相关]()
 
 - [CSS 相关]()
 
