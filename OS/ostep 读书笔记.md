@@ -28,12 +28,6 @@ OS会让硬件一直运行 timer
 
 通过VPN, 在 page table 中找到 PFN, PFN 和 offset 组合使用找到对应的物理地址
 
-### 什么是 TLB ? 全称是什么 ?
-
-*todo*
-
-
-
 ### 什么情况下会发生 page fault ?
 
 当加入了 swap space 机制之后, 当 hardware 在 page table 中找寻到对应的 PTE 以后, 想要根据 PTE 搜寻 page 时, 对应的 page 不一定在 物理内存中.
@@ -43,11 +37,6 @@ hardware 可以通过 PTE 上的 present bit 可以知道, 对应的 page 是否
 如果 present bit 置为 1, page 处于 物理内存中; 如果 present bit 置为 0, page 不处于物理内存中, 而在 disk 或者其他地方.
 
 如果访问了不在物理内存中的 page, 会产生 page fault (页错误)
-
-
-### 每个设备可能有自己的简单的 CPU, 内存, 以及硬件特定的芯片, 对吗 ?
-
-对
 
 ### time sharing 和 space sharing 有什么区别 ? 时分和空分有什么区别 ?
 
@@ -79,8 +68,6 @@ OS 还会将程序关联 input/output.
 
 如果进程进入了 blocked 状态, 需要等待特定事件的发生才有可能进入 ready 状态
 
-
-
 ### OS 维护的进程表是怎样的 ?
 
 process list 会包含 OS 中的所有进程
@@ -91,31 +78,15 @@ process list 会包含 OS 中的所有进程
 
 *todo*
 
-### exec() 的运行机制是怎样的 ?
 
-执行 exec() 会加载可执行程序的代码, 覆盖当前的 code segment, 以及当前的 static data.
 
-heap 和 stack 以及内存空间的其他部分也会重新初始化, 不会创建一个新的 process, 而是将当前进程中运行的程序进行转换
 
-exec() 调用运行成功不会返回
 
-### 为什么这样设计API ? fork() 和 exec()
 
-允许在调用 fork() 之后, 在调用 exec() 之前, 运行一些特定的代码,
-
-这部分特定的代码可以改变准备运行的程序的环境
-
-fork 和 exec 分开, 可以实现 input/output 的重定向, pipes ...
-
-#### 举例: `wc p3.c > newfile.txt`
-
-当子进程创建以后, 在调用 exec() 执行 wc 程序之前, shell 关闭标准输出, 打开文件 newfile.txt
-
-于是, 任何从 wc 程序输出的内容会被输入到文件中
 
 #### 举例:
 
-```C
+```c
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
